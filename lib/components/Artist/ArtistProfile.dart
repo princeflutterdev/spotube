@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:fl_query/fl_query_hooks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -8,6 +9,7 @@ import 'package:spotify/spotify.dart';
 import 'package:spotube/components/Album/AlbumCard.dart';
 import 'package:spotube/components/Artist/ArtistCard.dart';
 import 'package:spotube/components/LoaderShimmers/ShimmerArtistProfile.dart';
+import 'package:spotube/components/LoaderShimmers/ShimmerTrackTile.dart';
 import 'package:spotube/components/Shared/PageWindowTitleBar.dart';
 import 'package:spotube/components/Shared/TrackTile.dart';
 import 'package:spotube/helpers/image-to-url-string.dart';
@@ -20,6 +22,7 @@ import 'package:spotube/models/Logger.dart';
 import 'package:spotube/provider/Playback.dart';
 import 'package:spotube/provider/SpotifyDI.dart';
 import 'package:spotube/provider/SpotifyRequests.dart';
+import 'package:spotube/provider/queries.dart';
 
 class ArtistProfile extends HookConsumerWidget {
   final String artistId;
@@ -52,147 +55,173 @@ class ArtistProfile extends HookConsumerWidget {
 
     final Playback playback = ref.watch(playbackProvider);
 
-    final artistsSnapshot = ref.watch(artistProfileQuery(artistId));
-    final isFollowingSnapshot =
-        ref.watch(currentUserFollowsArtistQuery(artistId));
-    final topTracksSnapshot = ref.watch(artistTopTracksQuery(artistId));
-    final albums = ref.watch(artistAlbumsQuery(artistId));
-    final relatedArtists = ref.watch(artistRelatedArtistsQuery(artistId));
+    final query = useQuery(
+      job: useMemoized(() => artistProfileQueryJob(artistId), [artistId]),
+      externalData: {"id": artistId, "spotify": spotify},
+    );
+
+    final albumsQuery = useQuery(
+      job: useMemoized(() => artistAlbumsQueryJob(artistId), [artistId]),
+      externalData: {"id": artistId, "spotify": spotify},
+    );
+
+    final relatedArtistsQuery = useQuery(
+      job:
+          useMemoized(() => artistRelatedArtistsQueryJob(artistId), [artistId]),
+      externalData: {"id": artistId, "spotify": spotify},
+    );
+
+    final topTracksQuery = useQuery(
+      job: useMemoized(() => artistTopTracksQueryJob(artistId), [artistId]),
+      externalData: {"id": artistId, "spotify": spotify},
+    );
+
+    final isFollowingQuery = useQuery(
+      job: useMemoized(
+          () => currentUserFollowsArtistQueryJob(artistId), [artistId]),
+      externalData: {"id": artistId, "spotify": spotify},
+    );
 
     return SafeArea(
-      child: Scaffold(
-        appBar: const PageWindowTitleBar(
-          leading: BackButton(),
-        ),
-        body: artistsSnapshot.when<Widget>(
-          data: (data) {
-            return SingleChildScrollView(
-              controller: parentScrollController,
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    runAlignment: WrapAlignment.center,
-                    children: [
-                      const SizedBox(width: 50),
-                      CircleAvatar(
-                        radius: avatarWidth,
-                        backgroundImage: CachedNetworkImageProvider(
-                          imageToUrlString(data.images),
+        child: Scaffold(
+            appBar: const PageWindowTitleBar(
+              leading: BackButton(),
+            ),
+            body: Builder(builder: (context) {
+              if (query.isLoading || !query.hasData) {
+                return const ShimmerArtistProfile();
+              } else if (query.hasError) {
+                return const Text("Life's miserable");
+              }
+              return SingleChildScrollView(
+                controller: parentScrollController,
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      runAlignment: WrapAlignment.center,
+                      children: [
+                        const SizedBox(width: 50),
+                        CircleAvatar(
+                          radius: avatarWidth,
+                          backgroundImage: CachedNetworkImageProvider(
+                            imageToUrlString(query.data!.images),
+                          ),
                         ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                  color: Colors.blue,
-                                  borderRadius: BorderRadius.circular(50)),
-                              child: Text(data.type!.toUpperCase(),
-                                  style: chipTextVariant?.copyWith(
-                                      color: Colors.white)),
-                            ),
-                            Text(
-                              data.name!,
-                              style: breakpoint.isSm
-                                  ? textTheme.headline4
-                                  : textTheme.headline2,
-                            ),
-                            Text(
-                              "${toReadableNumber(data.followers!.total!.toDouble())} followers",
-                              style: breakpoint.isSm
-                                  ? textTheme.bodyText1
-                                  : textTheme.headline5,
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                isFollowingSnapshot.when(
-                                    data: (isFollowing) {
-                                      return OutlinedButton(
-                                        onPressed: () async {
-                                          try {
-                                            isFollowing
-                                                ? await spotify.me.unfollow(
-                                                    FollowingType.artist,
-                                                    [artistId],
-                                                  )
-                                                : await spotify.me.follow(
-                                                    FollowingType.artist,
-                                                    [artistId],
-                                                  );
-                                          } catch (e, stack) {
-                                            logger.e(
-                                              "FollowButton.onPressed",
-                                              e,
-                                              stack,
-                                            );
-                                          } finally {
-                                            ref.refresh(
-                                              currentUserFollowsArtistQuery(
-                                                  artistId),
-                                            );
-                                          }
-                                        },
-                                        child: Text(
-                                          isFollowing ? "Following" : "Follow",
-                                        ),
-                                      );
-                                    },
-                                    error: (error, stackTrace) => Container(),
-                                    loading: () =>
-                                        const CircularProgressIndicator
-                                            .adaptive()),
-                                IconButton(
-                                  icon: const Icon(Icons.share_rounded),
-                                  onPressed: () {
-                                    Clipboard.setData(
-                                      ClipboardData(
-                                          text: data.externalUrls?.spotify),
-                                    ).then((val) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          width: 300,
-                                          behavior: SnackBarBehavior.floating,
-                                          content: Text(
-                                            "Artist URL copied to clipboard",
-                                            textAlign: TextAlign.center,
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                    color: Colors.blue,
+                                    borderRadius: BorderRadius.circular(50)),
+                                child: Text(query.data!.type!.toUpperCase(),
+                                    style: chipTextVariant?.copyWith(
+                                        color: Colors.white)),
+                              ),
+                              Text(
+                                query.data!.name!,
+                                style: breakpoint.isSm
+                                    ? textTheme.headline4
+                                    : textTheme.headline2,
+                              ),
+                              Text(
+                                "${toReadableNumber(query.data!.followers!.total!.toDouble())} followers",
+                                style: breakpoint.isSm
+                                    ? textTheme.bodyText1
+                                    : textTheme.headline5,
+                              ),
+                              const SizedBox(height: 20),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  isFollowingQuery.isLoading ||
+                                          !isFollowingQuery.hasData
+                                      ? const CircularProgressIndicator()
+                                      : OutlinedButton(
+                                          onPressed: () async {
+                                            try {
+                                              isFollowingQuery.data!
+                                                  ? await spotify.me.unfollow(
+                                                      FollowingType.artist,
+                                                      [artistId],
+                                                    )
+                                                  : await spotify.me.follow(
+                                                      FollowingType.artist,
+                                                      [artistId],
+                                                    );
+                                            } catch (e, stack) {
+                                              logger.e(
+                                                "FollowButton.onPressed",
+                                                e,
+                                                stack,
+                                              );
+                                            } finally {
+                                              ref.refresh(
+                                                currentUserFollowsArtistQuery(
+                                                    artistId),
+                                              );
+                                            }
+                                          },
+                                          child: Text(
+                                            isFollowingQuery.data!
+                                                ? "Following"
+                                                : "Follow",
                                           ),
                                         ),
-                                      );
-                                    });
-                                  },
-                                )
-                              ],
-                            )
-                          ],
+                                  IconButton(
+                                    icon: const Icon(Icons.share_rounded),
+                                    onPressed: () {
+                                      Clipboard.setData(
+                                        ClipboardData(
+                                            text: query
+                                                .data!.externalUrls?.spotify),
+                                      ).then((val) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            width: 300,
+                                            behavior: SnackBarBehavior.floating,
+                                            content: Text(
+                                              "Artist URL copied to clipboard",
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ),
+                                        );
+                                      });
+                                    },
+                                  )
+                                ],
+                              )
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 50),
-                  topTracksSnapshot.when(
-                    data: (topTracks) {
+                      ],
+                    ),
+                    const SizedBox(height: 50),
+                    Builder(builder: (context) {
+                      if (topTracksQuery.isLoading || !topTracksQuery.hasData) {
+                        return const ShimmerTrackTile(noSliver: true);
+                      }
+                      final topTracks = topTracksQuery.data!;
                       final isPlaylistPlaying =
-                          playback.currentPlaylist?.id == data.id;
+                          playback.currentPlaylist?.id == query.data!.id;
                       playPlaylist(List<Track> tracks,
                           {Track? currentTrack}) async {
                         currentTrack ??= tracks.first;
                         if (!isPlaylistPlaying) {
                           playback.setCurrentPlaylist = CurrentPlaylist(
                             tracks: tracks,
-                            id: data.id!,
-                            name: "${data.name!} To Tracks",
-                            thumbnail: imageToUrlString(data.images),
+                            id: query.data!.id!,
+                            name: "${query.data!.name!} To Tracks",
+                            thumbnail: imageToUrlString(query.data!.images),
                           );
                           playback.setCurrentTrack = currentTrack;
                         } else if (isPlaylistPlaying &&
@@ -247,83 +276,65 @@ class ArtistProfile extends HookConsumerWidget {
                           );
                         }),
                       ]);
-                    },
-                    error: (error, stack) =>
-                        Text("Failed to find top tracks $error"),
-                    loading: () => const Center(
-                        child: CircularProgressIndicator.adaptive()),
-                  ),
-                  const SizedBox(height: 50),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Albums",
-                        style: Theme.of(context).textTheme.headline4,
-                      ),
-                      TextButton(
-                        child: const Text("See All"),
-                        onPressed: () {
-                          GoRouter.of(context).push(
-                            "/artist-album/$artistId",
-                            extra: data.name ?? "KRTX",
-                          );
-                        },
-                      )
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  albums.when(
-                    data: (albums) {
-                      return Scrollbar(
-                        controller: scrollController,
-                        child: SingleChildScrollView(
-                          controller: scrollController,
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: albums.items
-                                    ?.map((album) => AlbumCard(album))
-                                    .toList() ??
-                                [],
+                    }),
+                    const SizedBox(height: 50),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Albums",
+                          style: Theme.of(context).textTheme.headline4,
+                        ),
+                        TextButton(
+                          child: const Text("See All"),
+                          onPressed: () {
+                            GoRouter.of(context).push(
+                              "/artist-album/$artistId",
+                              extra: query.data!.name ?? "KRTX",
+                            );
+                          },
+                        )
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    albumsQuery.isLoading || !albumsQuery.hasData
+                        ? const CircularProgressIndicator.adaptive()
+                        : Scrollbar(
+                            controller: scrollController,
+                            child: SingleChildScrollView(
+                              controller: scrollController,
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children: albumsQuery.data!.items
+                                        ?.map((album) => AlbumCard(album))
+                                        .toList() ??
+                                    [],
+                              ),
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                    error: (error, stackTrack) =>
-                        Text("Failed to get Artist albums $error"),
-                    loading: () => const CircularProgressIndicator.adaptive(),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    "Fans also likes",
-                    style: Theme.of(context).textTheme.headline4,
-                  ),
-                  const SizedBox(height: 10),
-                  relatedArtists.when(
-                    data: (artists) {
-                      return Center(
-                        child: Wrap(
-                          spacing: 20,
-                          runSpacing: 20,
-                          children: artists
-                              .map((artist) => ArtistCard(artist))
-                              .toList(),
-                        ),
-                      );
-                    },
-                    error: (error, stackTrack) =>
-                        Text("Failed to get Artist albums $error"),
-                    loading: () => const CircularProgressIndicator.adaptive(),
-                  ),
-                ],
-              ),
-            );
-          },
-          error: (_, __) => const Text("Life's miserable"),
-          loading: () => const ShimmerArtistProfile(),
-        ),
-      ),
-    );
+                    const SizedBox(height: 20),
+                    Text(
+                      "Fans also likes",
+                      style: Theme.of(context).textTheme.headline4,
+                    ),
+                    const SizedBox(height: 10),
+                    relatedArtistsQuery.isLoading ||
+                            !relatedArtistsQuery.hasData
+                        ? const CircularProgressIndicator.adaptive()
+                        : Center(
+                            child: Wrap(
+                              spacing: 20,
+                              runSpacing: 20,
+                              children: relatedArtistsQuery.data!
+                                  .map((artist) => ArtistCard(artist))
+                                  .toList(),
+                            ),
+                          )
+                  ],
+                ),
+              );
+            })));
   }
 }
