@@ -1,3 +1,5 @@
+import 'package:fl_query/fl_query.dart';
+import 'package:fl_query/fl_query_hooks.dart';
 import 'package:flutter/material.dart' hide Page;
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -14,9 +16,8 @@ import 'package:spotube/hooks/useBreakpoints.dart';
 import 'package:spotube/models/CurrentPlaylist.dart';
 import 'package:spotube/provider/Auth.dart';
 import 'package:spotube/provider/Playback.dart';
-import 'package:spotube/provider/SpotifyRequests.dart';
-
-final searchTermStateProvider = StateProvider<String>((ref) => "");
+import 'package:spotube/provider/SpotifyDI.dart';
+import 'package:spotube/provider/queries.dart';
 
 class Search extends HookConsumerWidget {
   const Search({Key? key}) : super(key: key);
@@ -24,18 +25,20 @@ class Search extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, ref) {
     final Auth auth = ref.watch(authProvider);
-    final searchTerm = ref.watch(searchTermStateProvider);
-    final controller =
-        useTextEditingController(text: ref.read(searchTermStateProvider));
+    final controller = useTextEditingController(text: "");
     final albumController = useScrollController();
     final playlistController = useScrollController();
     final artistController = useScrollController();
     final breakpoint = useBreakpoints();
 
+    Playback playback = ref.watch(playbackProvider);
+
     if (auth.isAnonymous) {
       return const Expanded(child: AnonymousFallback());
     }
-    final searchSnapshot = ref.watch(searchQuery(searchTerm));
+
+    final mutation = useMutation(job: searchMutationJob);
+    final spotify = ref.watch(spotifyProvider);
 
     return Expanded(
       child: Container(
@@ -51,8 +54,10 @@ class Search extends HookConsumerWidget {
                       decoration: const InputDecoration(hintText: "Search..."),
                       controller: controller,
                       onSubmitted: (value) {
-                        ref.read(searchTermStateProvider.notifier).state =
-                            controller.value.text;
+                        mutation.mutate({
+                          "spotify": spotify,
+                          "query": controller.value.text,
+                        });
                       },
                     ),
                   ),
@@ -65,21 +70,35 @@ class Search extends HookConsumerWidget {
                     textColor: Colors.white,
                     child: const Icon(Icons.search_rounded),
                     onPressed: () {
-                      ref.read(searchTermStateProvider.notifier).state =
-                          controller.value.text;
+                      mutation.mutate({
+                        "spotify": spotify,
+                        "query": controller.value.text,
+                      });
                     },
                   ),
                 ],
               ),
             ),
-            searchSnapshot.when(
-              data: (data) {
-                Playback playback = ref.watch(playbackProvider);
+            Builder(
+              builder: (context) {
+                if (mutation.isLoading) {
+                  return const CircularProgressIndicator();
+                } else if (!mutation.hasData ||
+                    mutation.data?.isEmpty == true) {
+                  return Center(
+                    child: Text(
+                      "It looks empty. Search something...",
+                      style: Theme.of(context).textTheme.headline5,
+                    ),
+                  );
+                }
+
                 List<AlbumSimple> albums = [];
                 List<Artist> artists = [];
                 List<Track> tracks = [];
                 List<PlaylistSimple> playlists = [];
-                for (MapEntry<int, Page> page in data.asMap().entries) {
+                for (MapEntry<int, Page> page
+                    in mutation.data!.asMap().entries) {
                   for (var item in page.value.items ?? []) {
                     if (item is AlbumSimple) {
                       albums.add(item);
@@ -211,9 +230,7 @@ class Search extends HookConsumerWidget {
                   ),
                 );
               },
-              error: (error, __) => Text("Error $error"),
-              loading: () => const CircularProgressIndicator(),
-            )
+            ),
           ],
         ),
       ),

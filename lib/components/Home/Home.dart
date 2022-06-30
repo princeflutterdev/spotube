@@ -19,10 +19,12 @@ import 'package:spotube/components/Player/Player.dart';
 import 'package:spotube/components/Library/UserLibrary.dart';
 import 'package:spotube/hooks/useBreakpointValue.dart';
 import 'package:spotube/hooks/useHotKeys.dart';
-import 'package:spotube/hooks/usePaginatedFutureProvider.dart';
+import 'package:spotube/hooks/usePaginatedQuery.dart';
 import 'package:spotube/hooks/useUpdateChecker.dart';
 import 'package:spotube/models/Logger.dart';
-import 'package:spotube/provider/SpotifyRequests.dart';
+import 'package:spotube/provider/SpotifyDI.dart';
+import 'package:spotube/provider/UserPreferences.dart';
+import 'package:spotube/provider/queries.dart';
 import 'package:spotube/utils/platform.dart';
 
 List<String> spotifyScopes = [
@@ -115,10 +117,18 @@ class Home extends HookConsumerWidget {
                       child: Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: HookBuilder(builder: (context) {
-                          final pagingController = usePaginatedFutureProvider<
-                              Page<Category>, int, Category>(
-                            (pageKey) => categoriesQuery(pageKey),
-                            ref: ref,
+                          final spotify = ref.watch(spotifyProvider);
+                          final recommendationMarket = ref.watch(
+                            userPreferencesProvider
+                                .select((s) => s.recommendationMarket),
+                          );
+                          final pagedQuery = usePaginatedQuery<Page<Category>,
+                              Map<String, dynamic>, int, Category>(
+                            (pageKey) => categoriesQueryJob(pageKey.toString()),
+                            externalData: {
+                              "spotify": spotify,
+                              "recommendationMarket": recommendationMarket,
+                            },
                             firstPageKey: 0,
                             onData: (categories, pagingController, pageKey) {
                               final items = categories.items?.toList();
@@ -137,7 +147,7 @@ class Home extends HookConsumerWidget {
                             },
                           );
                           return PagedListView(
-                            pagingController: pagingController,
+                            pagingController: pagedQuery.pagingController,
                             builderDelegate:
                                 PagedChildBuilderDelegate<Category>(
                               firstPageProgressIndicatorBuilder: (_) =>

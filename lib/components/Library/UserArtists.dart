@@ -3,9 +3,10 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:spotify/spotify.dart';
 import 'package:spotube/components/Artist/ArtistCard.dart';
-import 'package:spotube/hooks/usePaginatedFutureProvider.dart';
+import 'package:spotube/hooks/usePaginatedQuery.dart';
 import 'package:spotube/models/Logger.dart';
-import 'package:spotube/provider/SpotifyRequests.dart';
+import 'package:spotube/provider/SpotifyDI.dart';
+import 'package:spotube/provider/queries.dart';
 
 class UserArtists extends HookConsumerWidget {
   UserArtists({Key? key}) : super(key: key);
@@ -13,10 +14,11 @@ class UserArtists extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, ref) {
-    final pagingController =
-        usePaginatedFutureProvider<CursorPage<Artist>, String, Artist>(
-      (pageKey) => currentUserFollowingArtistsQuery(pageKey),
-      ref: ref,
+    final spotify = ref.watch(spotifyProvider);
+    final pageQuery =
+        usePaginatedQuery<CursorPage<Artist>, SpotifyApi, String, Artist>(
+      (pageKey) => currentUserFollowingArtistsQueryJob(pageKey.toString()),
+      externalData: spotify,
       firstPageKey: "",
       onData: (artists, pagingController, pageKey) {
         final items = artists.items!.toList();
@@ -37,7 +39,7 @@ class UserArtists extends HookConsumerWidget {
         mainAxisSpacing: 20,
       ),
       padding: const EdgeInsets.all(10),
-      pagingController: pagingController,
+      pagingController: pageQuery.pagingController,
       builderDelegate: PagedChildBuilderDelegate<Artist>(
         itemBuilder: (context, item, index) {
           return ArtistCard(item);

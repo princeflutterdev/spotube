@@ -357,7 +357,7 @@ packages:
       path: "../fl-query/packages/fl_query"
       relative: true
     source: path
-    version: "0.0.1"
+    version: "0.1.0"
   flutter:
     dependency: "direct main"
     description: flutter

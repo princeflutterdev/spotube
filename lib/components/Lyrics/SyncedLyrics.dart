@@ -1,3 +1,4 @@
+import 'package:fl_query/fl_query_hooks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -10,20 +11,25 @@ import 'package:spotube/hooks/useBreakpoints.dart';
 import 'package:spotube/hooks/useSyncedLyrics.dart';
 import 'package:spotube/provider/Playback.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
-import 'package:spotube/provider/SpotifyRequests.dart';
+import 'package:spotube/provider/queries.dart';
 
 class SyncedLyrics extends HookConsumerWidget {
   const SyncedLyrics({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context, ref) {
-    final timedLyricsSnapshot = ref.watch(rentanadviserLyricsQuery);
-
     Playback playback = ref.watch(playbackProvider);
+    final timedLyricsQuery = useQuery(
+      job: rentanadviserLyricsQueryJob,
+      externalData: {
+        "currentTrack": playback.currentTrack,
+      },
+    );
+
     final breakpoint = useBreakpoints();
     final controller = useAutoScrollController();
     final failed = useState(false);
-    final lyricValue = timedLyricsSnapshot.asData?.value;
+    final lyricValue = timedLyricsQuery.data;
     final lyricsMap = useMemoized(
       () =>
           lyricValue?.lyrics

@@ -6,9 +6,10 @@ import 'package:spotify/spotify.dart';
 import 'package:spotube/components/LoaderShimmers/ShimmerPlaybuttonCard.dart';
 import 'package:spotube/components/Playlist/PlaylistCard.dart';
 import 'package:spotube/components/Shared/NotFound.dart';
-import 'package:spotube/hooks/usePaginatedFutureProvider.dart';
+import 'package:spotube/hooks/usePaginatedQuery.dart';
 import 'package:spotube/models/Logger.dart';
-import 'package:spotube/provider/SpotifyRequests.dart';
+import 'package:spotube/provider/SpotifyDI.dart';
+import 'package:spotube/provider/queries.dart';
 
 class CategoryCard extends HookConsumerWidget {
   final Category category;
@@ -23,18 +24,17 @@ class CategoryCard extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, ref) {
+    final spotify = ref.watch(spotifyProvider);
+
     final scrollController = useScrollController();
     final mounted = useIsMounted();
 
-    final pagingController =
-        usePaginatedFutureProvider<Page<PlaylistSimple>, int, PlaylistSimple>(
-      (pageKey) => categoryPlaylistsQuery(
-        [
-          category.id,
-          pageKey,
-        ].join("/"),
+    final pageQuery = usePaginatedQuery<Page<PlaylistSimple>, SpotifyApi, int,
+        PlaylistSimple>(
+      (pageKey) => categoryPlaylistsQueryJob(
+        "${category.id}/$pageKey",
       ),
-      ref: ref,
+      externalData: spotify,
       firstPageKey: 0,
       onData: (page, pagingController, pageKey) {
         if (playlists != null && playlists?.isNotEmpty == true && mounted()) {
@@ -61,7 +61,7 @@ class CategoryCard extends HookConsumerWidget {
             ],
           ),
         ),
-        pagingController.error != null
+        pageQuery.pagingController.error != null
             ? const Text("Something Went Wrong")
             : SizedBox(
                 height: 245,
@@ -69,7 +69,7 @@ class CategoryCard extends HookConsumerWidget {
                   controller: scrollController,
                   child: PagedListView<int, PlaylistSimple>(
                     shrinkWrap: true,
-                    pagingController: pagingController,
+                    pagingController: pageQuery.pagingController,
                     scrollController: scrollController,
                     scrollDirection: Axis.horizontal,
                     builderDelegate: PagedChildBuilderDelegate<PlaylistSimple>(

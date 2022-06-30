@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:fl_query/fl_query.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -18,7 +19,7 @@ class TrackCollectionView extends HookConsumerWidget {
   final String id;
   final String title;
   final String? description;
-  final AsyncValue<List<TrackSimple>> tracksSnapshot;
+  final Query<List<TrackSimple>, Map<String, dynamic>> tracksQuery;
   final String titleImage;
   final bool isPlaying;
   final void Function([Track? currentTrack]) onPlay;
@@ -33,7 +34,7 @@ class TrackCollectionView extends HookConsumerWidget {
   TrackCollectionView({
     required this.title,
     required this.id,
-    required this.tracksSnapshot,
+    required this.tracksQuery,
     required this.titleImage,
     required this.isPlaying,
     required this.onPlay,
@@ -80,7 +81,7 @@ class TrackCollectionView extends HookConsumerWidget {
             isPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded,
             color: Theme.of(context).backgroundColor,
           ),
-          onPressed: tracksSnapshot.asData?.value != null ? onPlay : null,
+          onPressed: tracksQuery.hasData ? onPlay : null,
         ),
       ),
     ];
@@ -220,23 +221,19 @@ class TrackCollectionView extends HookConsumerWidget {
                   );
                 }),
               ),
-              tracksSnapshot.when(
-                data: (tracks) {
-                  return TracksTableView(
-                    tracks is! List<Track>
-                        ? tracks
-                            .map((track) => simpleTrackToTrack(track, album!))
-                            .toList()
-                        : tracks,
-                    onTrackPlayButtonPressed: onPlay,
-                    playlistId: id,
-                    userPlaylist: isOwned,
-                  );
-                },
-                error: (error, _) =>
-                    SliverToBoxAdapter(child: Text("Error $error")),
-                loading: () => const ShimmerTrackTile(),
-              ),
+              if (tracksQuery.isLoading || !tracksQuery.hasData)
+                ShimmerTrackTile()
+              else
+                TracksTableView(
+                  tracksQuery.data is! List<Track>
+                      ? tracksQuery.data!
+                          .map((track) => simpleTrackToTrack(track, album!))
+                          .toList()
+                      : tracksQuery.data! as List<Track>,
+                  onTrackPlayButtonPressed: onPlay,
+                  playlistId: id,
+                  userPlaylist: isOwned,
+                )
             ],
           )),
     );

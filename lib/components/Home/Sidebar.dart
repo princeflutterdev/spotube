@@ -1,12 +1,15 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:fl_query/fl_query.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter/material.dart';
+import 'package:spotify/spotify.dart' hide Image;
 import 'package:spotube/helpers/image-to-url-string.dart';
 import 'package:spotube/hooks/useBreakpoints.dart';
 import 'package:spotube/models/sideBarTiles.dart';
-import 'package:spotube/provider/SpotifyRequests.dart';
+import 'package:spotube/provider/SpotifyDI.dart';
+import 'package:spotube/provider/queries.dart';
 
 class Sidebar extends HookConsumerWidget {
   final int selectedIndex;
@@ -35,7 +38,7 @@ class Sidebar extends HookConsumerWidget {
     final breakpoints = useBreakpoints();
     if (breakpoints.isSm) return Container();
     final extended = useState(false);
-    final meSnapshot = ref.watch(currentUserQuery);
+    final spotify = ref.watch(spotifyProvider);
 
     useEffect(() {
       if (breakpoints.isMd && extended.value) {
@@ -48,75 +51,77 @@ class Sidebar extends HookConsumerWidget {
     });
 
     return NavigationRail(
-      destinations: sidebarTileList
-          .map(
-            (e) => NavigationRailDestination(
-              icon: Icon(e.icon),
-              label: Text(
-                e.title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+        destinations: sidebarTileList
+            .map(
+              (e) => NavigationRailDestination(
+                icon: Icon(e.icon),
+                label: Text(
+                  e.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ),
-            ),
-          )
-          .toList(),
-      selectedIndex: selectedIndex,
-      onDestinationSelected: onSelectedIndexChanged,
-      extended: extended.value,
-      leading: extended.value
-          ? Padding(
-              padding: const EdgeInsets.only(left: 15),
-              child: Row(children: [
-                _buildSmallLogo(),
-                const SizedBox(
-                  width: 10,
-                ),
-                Text("Spotube", style: Theme.of(context).textTheme.headline4),
-              ]),
             )
-          : _buildSmallLogo(),
-      trailing: meSnapshot.when(
-        data: (data) {
-          final avatarImg = imageToUrlString(data.images,
-              index: (data.images?.length ?? 1) - 1);
-          return extended.value
-              ? Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundImage:
-                                CachedNetworkImageProvider(avatarImg),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            data.displayName ?? "Guest",
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                          icon: const Icon(Icons.settings_outlined),
-                          onPressed: () => goToSettings(context)),
-                    ],
-                  ))
-              : InkWell(
-                  onTap: () => goToSettings(context),
-                  child: CircleAvatar(
-                    backgroundImage: CachedNetworkImageProvider(avatarImg),
+            .toList(),
+        selectedIndex: selectedIndex,
+        onDestinationSelected: onSelectedIndexChanged,
+        extended: extended.value,
+        leading: extended.value
+            ? Padding(
+                padding: const EdgeInsets.only(left: 15),
+                child: Row(children: [
+                  _buildSmallLogo(),
+                  const SizedBox(
+                    width: 10,
                   ),
-                );
-        },
-        error: (e, _) => Text("Error $e"),
-        loading: () => const CircularProgressIndicator(),
-      ),
-    );
+                  Text("Spotube", style: Theme.of(context).textTheme.headline4),
+                ]),
+              )
+            : _buildSmallLogo(),
+        trailing: QueryBuilder<User, SpotifyApi>(
+          job: currentUserQueryJob,
+          externalData: spotify,
+          builder: (context, query) {
+            if (!query.hasData || query.isLoading) {
+              return const CircularProgressIndicator();
+            }
+            final avatarImg = imageToUrlString(query.data!.images,
+                index: (query.data!.images?.length ?? 1) - 1);
+            return extended.value
+                ? Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundImage:
+                                  CachedNetworkImageProvider(avatarImg),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              query.data!.displayName ?? "Guest",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                            icon: const Icon(Icons.settings_outlined),
+                            onPressed: () => goToSettings(context)),
+                      ],
+                    ))
+                : InkWell(
+                    onTap: () => goToSettings(context),
+                    child: CircleAvatar(
+                      backgroundImage: CachedNetworkImageProvider(avatarImg),
+                    ),
+                  );
+          },
+        ));
   }
 }

@@ -1,3 +1,4 @@
+import 'package:fl_query/fl_query.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:spotify/spotify.dart';
@@ -9,6 +10,7 @@ import 'package:spotube/provider/Auth.dart';
 import 'package:spotube/provider/Playback.dart';
 import 'package:spotube/provider/SpotifyDI.dart';
 import 'package:spotube/provider/SpotifyRequests.dart';
+import 'package:spotube/provider/queries.dart';
 
 class PlayerActions extends HookConsumerWidget {
   final MainAxisAlignment mainAxisAlignment;
@@ -52,10 +54,10 @@ class PlayerActions extends HookConsumerWidget {
                         logger.e("FavoriteButton.onPressed", e, stack);
                       } finally {
                         update();
-                        ref.refresh(currentUserSavedTracksQuery);
-                        ref.refresh(
-                          playlistTracksQuery("user-liked-tracks"),
-                        );
+                        QueryBowl.of(context).refetchQueries([
+                          currentUserSavedTracksQueryJob.queryKey,
+                          playlistTracksQueryJob("user-liked-tracks").queryKey,
+                        ]);
                       }
                     });
               }),
