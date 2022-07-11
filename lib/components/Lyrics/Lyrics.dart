@@ -1,5 +1,5 @@
 import 'package:fl_query/fl_query.dart';
-import 'package:fl_query/fl_query_hooks.dart';
+import 'package:fl_query_hooks/fl_query_hooks.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:spotify/spotify.dart';

@@ -64,8 +64,8 @@ dependencies:
   skeleton_text: ^3.0.0
   hive: ^2.2.2
   hive_flutter: ^1.1.0
-  fl_query:
-    path: ../fl-query/packages/fl_query
+  fl_query: ^0.1.0
+  fl_query_hooks: ^0.1.0
   
 dev_dependencies:
   flutter_test:
