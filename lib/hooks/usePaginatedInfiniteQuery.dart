@@ -43,8 +43,10 @@ PagedQuery<T, Outside, PageParam, ItemType> usePaginatedInfiniteQuery<
   );
 
   useEffect(() {
-    listener(PageParam pageKey) {
-      query.fetchNextPage((_, __) => pageKey);
+    listener(PageParam pageKey) async {
+      final page = await query.fetchNextPage((_, __) => pageKey);
+      if (!mounted() || page == null) return;
+      onData?.call(page, pagingController, pageKey);
     }
 
     pagingController.addPageRequestListener(listener);

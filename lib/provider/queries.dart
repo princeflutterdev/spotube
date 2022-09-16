@@ -6,16 +6,18 @@ import 'package:collection/collection.dart';
 import 'package:spotube/helpers/timed-lyrics.dart';
 import 'package:spotube/models/SpotubeTrack.dart';
 
-final categoriesQueryJob =
-    QueryJob.withVariableKey<Page<Category>, Map<String, dynamic>>(
-  preQueryKey: "categories-query",
-  task: (queryKey, data) {
+final categoriesInfiniteQueryJob =
+    InfiniteQueryJob<Page<Category>, Map<String, dynamic>, int>(
+  queryKey: "categories-query",
+  initialParam: 0,
+  getNextPageParam: (lastPage, lastParam) => lastPage.nextOffset,
+  getPreviousPageParam: (lastPage, lastParam) => lastPage.nextOffset - 16,
+  task: (queryKey, pageParam, data) {
     final SpotifyApi spotify = data["spotify"] as SpotifyApi;
     final String recommendationMarket = data["recommendationMarket"];
-    final int pageKey = int.parse(queryKey.split("#").last);
     return spotify.categories
         .list(country: recommendationMarket)
-        .getPage(15, pageKey);
+        .getPage(15, pageParam);
   },
 );
 
@@ -204,27 +206,31 @@ final currentUserAlbumsQueryJob = QueryJob<Iterable<AlbumSimple>, SpotifyApi>(
   },
 );
 
-final categoryPlaylistsQueryJob =
-    QueryJob.withVariableKey<Page<PlaylistSimple>, SpotifyApi>(
+final categoryPlaylistsInfiniteQueryJob =
+    InfiniteQueryJob.withVariableKey<Page<PlaylistSimple>, SpotifyApi, int>(
   preQueryKey: "category-playlists",
-  task: (queryKey, spotify) {
-    final List data = queryKey.split("#").last.split("/");
-    final id = data.first;
-    final pageKey = data.last;
+  initialParam: 0,
+  getNextPageParam: (lastPage, lastParam) => lastPage.nextOffset,
+  getPreviousPageParam: (lastPage, lastParam) => lastPage.nextOffset - 4,
+  task: (queryKey, pageKey, spotify) {
+    final id = getVariable(queryKey);
     return (id != "user-featured-playlists"
             ? spotify.playlists.getByCategoryId(id)
             : spotify.playlists.featured)
-        .getPage(3, int.parse(pageKey));
+        .getPage(3, pageKey);
   },
 );
 
-final currentUserFollowingArtistsQueryJob =
-    QueryJob.withVariableKey<CursorPage<Artist>, SpotifyApi>(
-  preQueryKey: "current-user-followed-artists",
-  task: (queryKey, spotify) {
+final currentUserFollowingArtistsInfiniteQueryJob =
+    InfiniteQueryJob<CursorPage<Artist>, SpotifyApi, String>(
+  queryKey: "current-user-followed-artists",
+  initialParam: "",
+  getNextPageParam: (lastPage, lastParam) => lastPage.items!.last.id!,
+  getPreviousPageParam: (lastPage, lastParam) => lastPage.items!.first.id!,
+  task: (queryKey, pageParam, spotify) {
     return spotify.me.following(FollowingType.artist).getPage(
           15,
-          queryKey.split("#").last,
+          pageParam,
         );
   },
 );

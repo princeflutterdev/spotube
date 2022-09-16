@@ -6,7 +6,7 @@ import 'package:spotify/spotify.dart';
 import 'package:spotube/components/LoaderShimmers/ShimmerPlaybuttonCard.dart';
 import 'package:spotube/components/Playlist/PlaylistCard.dart';
 import 'package:spotube/components/Shared/NotFound.dart';
-import 'package:spotube/hooks/usePaginatedQuery.dart';
+import 'package:spotube/hooks/usePaginatedInfiniteQuery.dart';
 import 'package:spotube/models/Logger.dart';
 import 'package:spotube/provider/SpotifyDI.dart';
 import 'package:spotube/provider/queries.dart';
@@ -27,23 +27,23 @@ class CategoryCard extends HookConsumerWidget {
     final spotify = ref.watch(spotifyProvider);
 
     final scrollController = useScrollController();
-    final mounted = useIsMounted();
 
-    final pageQuery = usePaginatedQuery<Page<PlaylistSimple>, SpotifyApi, int,
-        PlaylistSimple>(
-      (pageKey) => categoryPlaylistsQueryJob(
-        "${category.id}/$pageKey",
-      ),
+    final pageQuery = usePaginatedInfiniteQuery<Page<PlaylistSimple>,
+        SpotifyApi, int, PlaylistSimple>(
+      categoryPlaylistsInfiniteQueryJob(category.id!),
       externalData: spotify,
       firstPageKey: 0,
       onData: (page, pagingController, pageKey) {
-        if (playlists != null && playlists?.isNotEmpty == true && mounted()) {
+        if (playlists != null && playlists?.isNotEmpty == true) {
           return pagingController.appendLastPage(playlists!.toList());
         }
         if (page.isLast && page.items != null) {
           pagingController.appendLastPage(page.items!.toList());
         } else if (page.items != null) {
-          pagingController.appendPage(page.items!.toList(), page.nextOffset);
+          pagingController.appendPage(
+            page.items!.toList(),
+            page.nextOffset,
+          );
         }
       },
     );

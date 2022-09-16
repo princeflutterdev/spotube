@@ -3,7 +3,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:spotify/spotify.dart';
 import 'package:spotube/components/Artist/ArtistCard.dart';
-import 'package:spotube/hooks/usePaginatedQuery.dart';
+import 'package:spotube/hooks/usePaginatedInfiniteQuery.dart';
 import 'package:spotube/models/Logger.dart';
 import 'package:spotube/provider/SpotifyDI.dart';
 import 'package:spotube/provider/queries.dart';
@@ -15,9 +15,9 @@ class UserArtists extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, ref) {
     final spotify = ref.watch(spotifyProvider);
-    final pageQuery =
-        usePaginatedQuery<CursorPage<Artist>, SpotifyApi, String, Artist>(
-      (pageKey) => currentUserFollowingArtistsQueryJob(pageKey.toString()),
+    final pageQuery = usePaginatedInfiniteQuery<CursorPage<Artist>, SpotifyApi,
+        String, Artist>(
+      currentUserFollowingArtistsInfiniteQueryJob,
       externalData: spotify,
       firstPageKey: "",
       onData: (artists, pagingController, pageKey) {

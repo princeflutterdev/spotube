@@ -19,7 +19,7 @@ import 'package:spotube/components/Player/Player.dart';
 import 'package:spotube/components/Library/UserLibrary.dart';
 import 'package:spotube/hooks/useBreakpointValue.dart';
 import 'package:spotube/hooks/useHotKeys.dart';
-import 'package:spotube/hooks/usePaginatedQuery.dart';
+import 'package:spotube/hooks/usePaginatedInfiniteQuery.dart';
 import 'package:spotube/hooks/useUpdateChecker.dart';
 import 'package:spotube/models/Logger.dart';
 import 'package:spotube/provider/SpotifyDI.dart';
@@ -122,9 +122,12 @@ class Home extends HookConsumerWidget {
                             userPreferencesProvider
                                 .select((s) => s.recommendationMarket),
                           );
-                          final pagedQuery = usePaginatedQuery<Page<Category>,
-                              Map<String, dynamic>, int, Category>(
-                            (pageKey) => categoriesQueryJob(pageKey.toString()),
+                          final pagedQuery = usePaginatedInfiniteQuery<
+                              Page<Category>,
+                              Map<String, dynamic>,
+                              int,
+                              Category>(
+                            categoriesInfiniteQueryJob,
                             externalData: {
                               "spotify": spotify,
                               "recommendationMarket": recommendationMarket,
