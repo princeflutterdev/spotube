@@ -45,7 +45,10 @@ void main() async {
     });
   }
   runApp(ProviderScope(
-    child: QueryBowlScope(child: Spotube()),
+    child: QueryBowlScope(
+      bowl: QueryBowl(),
+      child: Spotube(),
+    ),
     overrides: [
       playbackProvider.overrideWithProvider(ChangeNotifierProvider(
         (ref) {
