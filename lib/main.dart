@@ -29,11 +29,11 @@ import 'package:spotube/utils/platform.dart';
 
 final bowl = QueryBowl();
 void main() async {
-  await Hive.initFlutter();
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeFlQuery(cacheKey: "spotube");
   Hive.registerAdapter(CacheTrackAdapter());
   Hive.registerAdapter(CacheTrackEngagementAdapter());
   Hive.registerAdapter(CacheTrackSkipSegmentAdapter());
-  WidgetsFlutterBinding.ensureInitialized();
   if (kIsDesktop) {
     doWhenWindowReady(() async {
       final localStorage = await SharedPreferences.getInstance();

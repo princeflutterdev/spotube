@@ -31,9 +31,7 @@ class CategoryCard extends HookConsumerWidget {
       job: Queries.category.playlistsOf(category.id!),
       externalData: spotify,
     );
-    final hasNextPage = playlistQuery.pages.isEmpty
-        ? false
-        : (playlistQuery.pages.last?.items?.length ?? 0) == 5;
+    final hasNextPage = playlistQuery.hasNextPage;
 
     final playlists = playlistQuery.pages
         .expand(
@@ -51,41 +49,45 @@ class CategoryCard extends HookConsumerWidget {
             ],
           ),
         ),
-        playlistQuery.hasError
-            ? PlatformText(
-                "Something Went Wrong\n${playlistQuery.errors.first}")
-            : SizedBox(
-                height: 245,
-                child: ScrollConfiguration(
-                  behavior: ScrollConfiguration.of(context).copyWith(
-                    dragDevices: {
-                      PointerDeviceKind.touch,
-                      PointerDeviceKind.mouse,
-                    },
-                  ),
-                  child: Scrollbar(
+        if (playlists.isEmpty &&
+            !playlistQuery.hasData &&
+            !playlistQuery.hasError)
+          const ShimmerPlaybuttonCard(count: 5)
+        else if (playlists.isNotEmpty)
+          SizedBox(
+            height: 245,
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                dragDevices: {
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.mouse,
+                },
+              ),
+              child: Scrollbar(
+                controller: scrollController,
+                interactive: false,
+                child: Waypoint(
+                  controller: scrollController,
+                  onTouchEdge: () async {
+                    await playlistQuery.fetchNextPage();
+                  },
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    shrinkWrap: true,
                     controller: scrollController,
-                    interactive: false,
-                    child: Waypoint(
-                      controller: scrollController,
-                      onTouchEdge: () {
-                        playlistQuery.fetchNextPage();
-                      },
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        shrinkWrap: true,
-                        controller: scrollController,
-                        children: [
-                          ...playlists
-                              .map((playlist) => PlaylistCard(playlist)),
-                          if (hasNextPage)
-                            const ShimmerPlaybuttonCard(count: 1),
-                        ],
-                      ),
-                    ),
+                    children: [
+                      ...playlists.map((playlist) => PlaylistCard(playlist)),
+                      if (hasNextPage) const ShimmerPlaybuttonCard(count: 1),
+                    ],
                   ),
                 ),
               ),
+            ),
+          ),
+        if (playlistQuery.hasError && playlists.isEmpty)
+          PlatformText(
+            "Something Went Wrong\n${playlistQuery.errors.first}",
+          ),
       ],
     );
   }

@@ -231,12 +231,14 @@ class TrackCollectionView<T> extends HookConsumerWidget {
               ),
               HookBuilder(
                 builder: (context) {
-                  if (tracksSnapshot.isLoading || !tracksSnapshot.hasData) {
+                  if (!tracksSnapshot.hasData) {
                     return const ShimmerTrackTile();
-                  } else if (tracksSnapshot.hasError &&
+                  } else if (!tracksSnapshot.hasData &&
+                      tracksSnapshot.hasError &&
                       tracksSnapshot.isError) {
                     return SliverToBoxAdapter(
-                        child: PlatformText("Error ${tracksSnapshot.error}"));
+                      child: PlatformText("Error ${tracksSnapshot.error}"),
+                    );
                   }
 
                   final tracks = tracksSnapshot.data!;

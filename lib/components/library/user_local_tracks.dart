@@ -23,6 +23,7 @@ import 'package:spotube/utils/platform.dart';
 import 'package:spotube/utils/primitive_utils.dart';
 import 'package:spotube/utils/service_utils.dart';
 import 'package:spotube/utils/type_conversion_utils.dart';
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart' show FfiException;
 
 const supportedAudioTypes = [
   "audio/webm",
@@ -88,6 +89,11 @@ final localTracksProvider = FutureProvider<List<Track>>((ref) async {
             }
 
             return {"metadata": metadata, "file": f, "art": imageFile.path};
+          } on FfiException catch (e, stack) {
+            if (e.message != "NoTag: reader does not contain an id3 tag") {
+              getLogger(FutureProvider).e("[Fetching metadata]", e, stack);
+            }
+            return {};
           } catch (e, stack) {
             getLogger(FutureProvider).e("[Fetching metadata]", e, stack);
             return {};

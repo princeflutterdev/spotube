@@ -27,3 +27,24 @@ extension TrackJson on Track {
     };
   }
 }
+
+extension TrackSimpleJson on TrackSimple {
+  Map<String, dynamic> toJson() {
+    return {
+      "artists": artists?.map((artist) => artist.toJson()).toList(),
+      "availableMarkets": availableMarkets,
+      "discNumber": discNumber,
+      "duration": duration.toString(),
+      "durationMs": durationMs,
+      "explicit": explicit,
+      "href": href,
+      "id": id,
+      "isPlayable": isPlayable,
+      "name": name,
+      "previewUrl": previewUrl,
+      "trackNumber": trackNumber,
+      "type": type,
+      "uri": uri,
+    };
+  }
+}

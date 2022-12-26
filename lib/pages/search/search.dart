@@ -48,17 +48,21 @@ class SearchPage extends HookConsumerWidget {
     );
 
     final searchTrack = useInfiniteQuery(
-        job: Queries.search.get(SearchType.track.key),
-        externalData: getVariables());
+      job: Queries.search.get(SearchType.track.key),
+      externalData: getVariables(),
+    );
     final searchAlbum = useInfiniteQuery(
-        job: Queries.search.get(SearchType.album.key),
-        externalData: getVariables());
+      job: Queries.search.get(SearchType.album.key),
+      externalData: getVariables(),
+    );
     final searchPlaylist = useInfiniteQuery(
-        job: Queries.search.get(SearchType.playlist.key),
-        externalData: getVariables());
+      job: Queries.search.get(SearchType.playlist.key),
+      externalData: getVariables(),
+    );
     final searchArtist = useInfiniteQuery(
-        job: Queries.search.get(SearchType.artist.key),
-        externalData: getVariables());
+      job: Queries.search.get(SearchType.artist.key),
+      externalData: getVariables(),
+    );
 
     void onSearch() {
       for (final query in [
