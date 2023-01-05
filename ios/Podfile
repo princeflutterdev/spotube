@@ -42,6 +42,8 @@ post_install do |installer|
         '$(inherited)',
         'AUDIO_SESSION_MICROPHONE=0'
       ]
+      # Workaround for https://github.com/flutter/flutter/issues/64502
+      config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES' # <= this line
     end
   end
 end

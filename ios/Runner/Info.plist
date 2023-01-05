@@ -50,7 +50,12 @@
       <key>NSAllowsArbitraryLoadsForMedia</key>
       <true />
     </dict>
-  	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-</dict>
+    <key>CADisableMinimumFrameDurationOnPhone</key>
+    <true />
+    <!-- For webrtc usage (Camera and Microphone) -->
+    <!-- <key>NSCameraUsageDescription</key>
+    <string>$(PRODUCT_NAME) Camera Usage!</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>$(PRODUCT_NAME) Microphone Usage!</string> -->
+  </dict>
 </plist>
